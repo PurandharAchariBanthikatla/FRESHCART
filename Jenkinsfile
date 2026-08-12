@@ -98,6 +98,5 @@ post {
         echo "FreshCart deployment failed. Check the Jenkins console output."
     }
 }
-```
 
 }
