@@ -1,5 +1,14 @@
+```groovy
 pipeline {
     agent any
+
+    environment {
+        PROJECT_URL = 'https://github.com/PurandharAchariBanthikatla/FRESHCART.git'
+        SERVER_IP   = 'YOUR_EC2_PUBLIC_IP'
+        APP_NAME    = 'freshcart-backend'
+        APP_DIR     = '/opt/freshcart'
+        JAR_NAME    = 'freshcart-backend.jar'
+    }
 
     stages {
 
@@ -9,38 +18,69 @@ pipeline {
             }
         }
 
-        stage('Maven Clean') {
-            steps {
-                sh 'mvn clean'
-            }
-        }
-
-        stage('Test') {
-            steps {
-                sh 'mvn test'
-            }
-        }
-
-        stage('Build') {
-            steps {
-                sh 'mvn package -DskipTests'
-            }
-        }
-
-        stage('Deploy') {
+        stage('Maven Build') {
             steps {
                 sh '''
-                    pkill -f "freshcart.*\\.jar" || true
-                    nohup java -jar target/*.jar > app.log 2>&1 &
+                    echo "Starting Maven build..."
+
+                    mvn clean package -DskipTests
+
+                    echo "Build completed."
+
+                    if [ ! -f target/${JAR_NAME} ]; then
+                        echo "ERROR: JAR file not found!"
+                        ls -lh target/
+                        exit 1
+                    fi
+
+                    ls -lh target/${JAR_NAME}
                 '''
             }
         }
 
-        stage('Health Check') {
+        stage('Deploy to EC2') {
             steps {
                 sh '''
-                    sleep 10
-                    curl -f http://localhost:8080/actuator/health
+                    echo "Deploying application to EC2..."
+
+                    ssh -o StrictHostKeyChecking=no ubuntu@${SERVER_IP} "
+                        sudo mkdir -p ${APP_DIR}
+                        sudo systemctl stop ${APP_NAME} || true
+                    "
+
+                    scp -o StrictHostKeyChecking=no \
+                        target/${JAR_NAME} \
+                        ubuntu@${SERVER_IP}:/tmp/${JAR_NAME}
+
+                    ssh -o StrictHostKeyChecking=no ubuntu@${SERVER_IP} "
+                        sudo mv /tmp/${JAR_NAME} ${APP_DIR}/${JAR_NAME}
+                        sudo chown ubuntu:ubuntu ${APP_DIR}/${JAR_NAME}
+                    "
+                '''
+            }
+        }
+
+        stage('Restart Application') {
+            steps {
+                sh '''
+                    echo "Restarting FreshCart application..."
+
+                    ssh -o StrictHostKeyChecking=no ubuntu@${SERVER_IP} "
+                        sudo systemctl restart ${APP_NAME}
+                        sudo systemctl status ${APP_NAME} --no-pager
+                    "
+                '''
+            }
+        }
+
+        stage('Verify Application') {
+            steps {
+                sh '''
+                    echo "Verifying application..."
+
+                    ssh -o StrictHostKeyChecking=no ubuntu@${SERVER_IP} "
+                        sudo systemctl is-active ${APP_NAME}
+                    "
                 '''
             }
         }
@@ -48,11 +88,12 @@ pipeline {
 
     post {
         success {
-            echo 'Maven CI/CD pipeline completed successfully!'
+            echo 'FreshCart deployment completed successfully!'
         }
 
         failure {
-            echo 'Maven CI/CD pipeline failed!'
+            echo 'FreshCart deployment failed. Check the Jenkins console output.'
         }
     }
 }
+```
