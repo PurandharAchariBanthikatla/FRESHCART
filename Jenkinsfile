@@ -4,7 +4,7 @@ pipeline {
 
     environment {
         PROJECT_URL = 'https://github.com/PurandharAchariBanthikatla/FRESHCART.git'
-        SERVER_IP   = 'YOUR_EC2_PUBLIC_IP'
+        SERVER_IP   = '15.206.94.9'
         APP_NAME    = 'freshcart-backend'
         APP_DIR     = '/opt/freshcart'
         JAR_NAME    = 'freshcart-backend.jar'
