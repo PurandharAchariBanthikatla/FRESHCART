@@ -1,7 +1,6 @@
 pipeline {
 agent any
 
-```
 environment {
     PROJECT_URL = 'https://github.com/PurandharAchariBanthikatla/FRESHCART.git'
     SERVER_IP   = '15.206.94.9'
